@@ -1,0 +1,3 @@
+{
+  "python.defaultInterpreterPath": "${env:HOME}/miniconda3/envs/t1da/bin/python"
+}

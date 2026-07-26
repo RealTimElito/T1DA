@@ -1,0 +1,27 @@
+{
+  "labels": [
+    "hypo",
+    "in_range",
+    "hyper"
+  ],
+  "matrix": {
+    "hypo": {
+      "hypo": 3468,
+      "in_range": 309,
+      "hyper": 0
+    },
+    "in_range": {
+      "hypo": 85,
+      "in_range": 51039,
+      "hyper": 363
+    },
+    "hyper": {
+      "hypo": 0,
+      "in_range": 55,
+      "hyper": 6475
+    }
+  },
+  "n_points": 61794,
+  "accuracy_pct": 98.68595656536233,
+  "meets_target": true
+}
