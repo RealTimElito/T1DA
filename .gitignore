@@ -4,6 +4,21 @@ __pycache__/
 .mypy_cache/
 .venv/
 venv/
+.env
+.env.*
+!.env.example
+*.egg-info/
+dist/
+build/
+.cursor/
+
+# Local IDE interpreter paths (launch configs may still be shared)
+.vscode/settings.json
+
+# Checkpoints — keep the small demo weight tracked explicitly
+*.pt
+!models/glucose_lstm.pt
+
 data/raw/*
 data/processed/*
 data/external/*
@@ -11,6 +26,3 @@ data/external/*
 !data/processed/.gitkeep
 !data/external/.gitkeep
 !data/sample/
-*.egg-info/
-dist/
-build/

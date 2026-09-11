@@ -5,7 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.data.constants import HORIZON_OFFSETS, HORIZON_SIZE, WINDOW_SIZE
+from src.data.constants import (
+    FEATURE_COLUMNS,
+    HORIZON_OFFSETS,
+    HORIZON_SIZE,
+    WINDOW_SIZE,
+)
 from src.data.features import build_windows_from_segment
 from src.data.ingestion import generate_synthetic_patient, write_synthetic_sample
 from src.data.pipeline import run_synthetic_pipeline
@@ -39,13 +44,15 @@ def test_no_future_leakage_in_windows():
     resampled = resample_patient_frame(frame)
     x, y = build_windows_from_segment(resampled)
     assert len(x) > 0
-    # Last feature row glucose must not appear in first target (5 min ahead only).
-    for i in range(len(x)):
-        window_end_glucose = x[i, -1, 0]
-        first_target = y[i, 0]
-        assert first_target != window_end_glucose or True  # may coincide by chance
-        # Structural check: horizon offsets are strictly future indices.
-        assert HORIZON_OFFSETS[0] >= 1
+    assert all(offset >= 1 for offset in HORIZON_OFFSETS)
+
+    feature_values = resampled[list(FEATURE_COLUMNS)].to_numpy(dtype=np.float64)
+    glucose = feature_values[:, 0]
+    end_idx = WINDOW_SIZE - 1
+    expected_x = feature_values[end_idx - WINDOW_SIZE + 1 : end_idx + 1]
+    expected_y = glucose[[end_idx + offset for offset in HORIZON_OFFSETS]]
+    np.testing.assert_allclose(x[0], expected_x)
+    np.testing.assert_allclose(y[0], expected_y)
 
 
 def test_temporal_split_preserves_order():

@@ -6,16 +6,26 @@ build-backend = "setuptools.build_meta"
 name = "t1da"
 version = "0.1.0"
 description = "Type 1 Diabetes forecasting system"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "torch>=2.0.0",
+    "transformers>=4.50.0",
+    "accelerate>=1.0.0",
+    "requests>=2.31.0",
+    "matplotlib>=3.7.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/RealTimElito/T1DA"
+Issues = "https://github.com/RealTimElito/T1DA/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

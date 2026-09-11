@@ -44,19 +44,33 @@ JAEB_KNOWN_URLS: dict[int, str] = {
 }
 
 OHIO_T1DM_INFO = """\
-OhioT1DM requires a signed Data Use Agreement and institutional email.
+# OhioT1DM
+
+OhioT1DM requires a signed Data Use Agreement (DUA) and an institutional email.
+Do **not** redistribute the dataset via this repository or public forks.
 
 1. Complete the DUA form linked from:
    https://webpages.charlotte.edu/rbunescu/data/ohiot1dm/OhioT1DM-dataset.html
 2. Email the signed form to the Ohio University coordinator (see that page).
-3. Place the decrypted dataset under: data/external/ohiot1dm/
+3. Place the decrypted dataset under: `data/external/ohiot1dm/`
 
 Alternatively, email razvan.bunescu@charlotte.edu with subject "OhioT1DM Request".
 """
 
 T1DEXI_VIVLI_INFO = """\
-T1DEXI is also mirrored on Jaeb (record 589) as "T1DEXI - DATA FOR UPLOAD.zip".
-Run: python scripts/download_datasets.py --only jaeb
+# T1DEXI
+
+T1DEXI access is governed by Jaeb and/or Vivli terms. Honor any DUA you sign.
+Do **not** commit or redistribute restricted archives in this repo.
+
+T1DEXI is mirrored on Jaeb (record 589) as "T1DEXI - DATA FOR UPLOAD.zip".
+
+```bash
+export JAEB_FULL_NAME="Your Name"
+export JAEB_EMAIL="you@institution.edu"
+export JAEB_INSTITUTION="Your Institution"
+python scripts/download_datasets.py --only jaeb --jaeb-ids 589
+```
 
 If Jaeb is unavailable, request access via Vivli:
 https://search.vivli.org/doiLanding/studies/PR00008428/isLanding
@@ -141,18 +155,37 @@ def download_awesome_cgm(output_dir: Path, session) -> list[Path]:
     return saved
 
 
-def _jaeb_request_url(rec_id: int, protocol: str, session) -> str | None:
-    """Resolve a Jaeb dataset download URL via /getprotfile."""
-    payload = {
-        'recId': str(rec_id),
-        'protDs': protocol,
-        'fullname': os.environ.get('JAEB_FULL_NAME', 'Research User'),
-        'email': os.environ.get('JAEB_EMAIL', 'research@example.com'),
-        'institution': os.environ.get('JAEB_INSTITUTION', 'none'),
+def _require_jaeb_identity() -> dict[str, str]:
+    """Return Jaeb registration fields from env; refuse placeholder defaults."""
+    required = ('JAEB_FULL_NAME', 'JAEB_EMAIL', 'JAEB_INSTITUTION')
+    missing = [name for name in required if not os.environ.get(name, '').strip()]
+    if missing:
+        raise RuntimeError(
+            'Jaeb downloads require real registration details. Set: '
+            + ', '.join(missing)
+            + '. Example:\n'
+            '  export JAEB_FULL_NAME="Your Name"\n'
+            '  export JAEB_EMAIL="you@institution.edu"\n'
+            '  export JAEB_INSTITUTION="Your Institution"'
+        )
+    return {
+        'fullname': os.environ['JAEB_FULL_NAME'].strip(),
+        'email': os.environ['JAEB_EMAIL'].strip(),
+        'institution': os.environ['JAEB_INSTITUTION'].strip(),
         'purpose': os.environ.get(
             'JAEB_PURPOSE',
             'Type 1 diabetes CGM forecasting research (T1DA project).',
-        ),
+        ).strip(),
+    }
+
+
+def _jaeb_request_url(rec_id: int, protocol: str, session) -> str | None:
+    """Resolve a Jaeb dataset download URL via /getprotfile."""
+    identity = _require_jaeb_identity()
+    payload = {
+        'recId': str(rec_id),
+        'protDs': protocol,
+        **identity,
     }
     resp = session.post(
         'https://public.jaeb.org/getprotfile',
@@ -188,12 +221,20 @@ def download_jaeb(
     *,
     datasets: list[int] | None = None,
 ) -> list[Path]:
-    """Download Jaeb Center public diabetes datasets."""
+    """Download Jaeb Center public diabetes datasets.
+
+    API registration requires ``JAEB_FULL_NAME``, ``JAEB_EMAIL``, and
+    ``JAEB_INSTITUTION``. Known direct URLs (if any) still require you to
+    comply with Jaeb terms of use.
+    """
     out = output_dir / 'jaeb'
     out.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     ids = datasets or sorted(JAEB_DATASETS)
     blocked = False
+    needs_api = any(rec_id not in JAEB_KNOWN_URLS for rec_id in ids)
+    if needs_api:
+        _require_jaeb_identity()
 
     for rec_id in ids:
         slug = JAEB_DATASETS.get(rec_id, f'dataset_{rec_id}')
@@ -204,6 +245,8 @@ def download_jaeb(
             try:
                 protocol = _jaeb_protocol(rec_id, session)
                 url = _jaeb_request_url(rec_id, protocol, session)
+            except RuntimeError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 print(f'  Jaeb lookup failed for {rec_id}: {exc}')
                 url = None
@@ -211,7 +254,8 @@ def download_jaeb(
                 blocked = True
                 print(
                     '  Jaeb API blocked (captcha/rate limit). '
-                    'Set JAEB_FULL_NAME, JAEB_EMAIL, JAEB_INSTITUTION and retry later.'
+                    'Retry later with JAEB_FULL_NAME, JAEB_EMAIL, '
+                    'JAEB_INSTITUTION set.'
                 )
 
         if url is None:
